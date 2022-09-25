@@ -6,7 +6,6 @@
 // we include it here so you know it exists in case you want
 // to look at the API or implementation.
 #include <torch/custom_class.h>
-
 #include <string>
 #include <vector>
 
@@ -15,9 +14,7 @@ struct MyStackClass : torch::CustomClassHolder {
   std::vector<T> stack_;
   MyStackClass(std::vector<T> init) : stack_(init.begin(), init.end()) {}
 
-  void push(T x) {
-    stack_.push_back(x);
-  }
+  void push(T x) { stack_.push_back(x); }
   T pop() {
     auto val = stack_.back();
     stack_.pop_back();
@@ -26,6 +23,12 @@ struct MyStackClass : torch::CustomClassHolder {
 
   c10::intrusive_ptr<MyStackClass> clone() const {
     return c10::make_intrusive<MyStackClass>(stack_);
+  }
+
+  c10::intrusive_ptr<MyStackClass> manipulate_instance(
+      const c10::intrusive_ptr<MyStackClass<T>>& instance) {
+    instance->pop();
+    return instance;
   }
 
   void merge(const c10::intrusive_ptr<MyStackClass>& c) {
@@ -49,29 +52,29 @@ struct MyStackClass : torch::CustomClassHolder {
 //   actual class name.
 TORCH_LIBRARY(my_classes, m) {
   m.class_<MyStackClass<std::string>>("MyStackClass")
-    // The following line registers the contructor of our MyStackClass
-    // class that takes a single `std::vector<std::string>` argument,
-    // i.e. it exposes the C++ method `MyStackClass(std::vector<T> init)`.
-    // Currently, we do not support registering overloaded
-    // constructors, so for now you can only `def()` one instance of
-    // `torch::init`.
-    .def(torch::init<std::vector<std::string>>())
-    // The next line registers a stateless (i.e. no captures) C++ lambda
-    // function as a method. Note that a lambda function must take a
-    // `c10::intrusive_ptr<YourClass>` (or some const/ref version of that)
-    // as the first argument. Other arguments can be whatever you want.
-    .def("top", [](const c10::intrusive_ptr<MyStackClass<std::string>>& self) {
-      return self->stack_.back();
-    })
-    // The following four lines expose methods of the MyStackClass<std::string>
-    // class as-is. `torch::class_` will automatically examine the
-    // argument and return types of the passed-in method pointers and
-    // expose these to Python and TorchScript accordingly. Finally, notice
-    // that we must take the *address* of the fully-qualified method name,
-    // i.e. use the unary `&` operator, due to C++ typing rules.
-    .def("push", &MyStackClass<std::string>::push)
-    .def("pop", &MyStackClass<std::string>::pop)
-    .def("clone", &MyStackClass<std::string>::clone)
-    .def("merge", &MyStackClass<std::string>::merge)
-  ;
+      // The following line registers the contructor of our MyStackClass
+      // class that takes a single `std::vector<std::string>` argument,
+      // i.e. it exposes the C++ method `MyStackClass(std::vector<T> init)`.
+      // Currently, we do not support registering overloaded
+      // constructors, so for now you can only `def()` one instance of
+      // `torch::init`.
+      .def(torch::init<std::vector<std::string>>())
+      // The next line registers a stateless (i.e. no captures) C++ lambda
+      // function as a method. Note that a lambda function must take a
+      // `c10::intrusive_ptr<YourClass>` (or some const/ref version of that)
+      // as the first argument. Other arguments can be whatever you want.
+      .def("top",
+           [](const c10::intrusive_ptr<MyStackClass<std::string>>& self) {
+             return self->stack_.back();
+           })
+      // The following four lines expose methods of the
+      // MyStackClass<std::string> class as-is. `torch::class_` will
+      // automatically examine the argument and return types of the passed-in
+      // method pointers and expose these to Python and TorchScript accordingly.
+      // Finally, notice that we must take the *address* of the fully-qualified
+      // method name, i.e. use the unary `&` operator, due to C++ typing rules.
+      .def("push", &MyStackClass<std::string>::push)
+      .def("pop", &MyStackClass<std::string>::pop)
+      .def("clone", &MyStackClass<std::string>::clone)
+      .def("merge", &MyStackClass<std::string>::merge);
 }

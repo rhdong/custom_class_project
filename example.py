@@ -21,7 +21,8 @@ assert s.pop() == "pushed"
 
 # Test custom operator
 s.push("pushed")
-torch.ops.my_classes.manipulate_instance(s)  # acting as s.pop()
+# torch.ops.my_classes.manipulate_instance(s)  # acting as s.pop()
+print(s.top())
 assert s.top() == "bar"
 
 # Returning and passing instances of custom classes works as you'd expect
