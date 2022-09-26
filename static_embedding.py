@@ -2,64 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from typing import Optional
 
 torch.manual_seed(1)
-
-############################################
-
-torch.classes.load_library("build/libmerlin_kv.so")
-table = torch.classes.merlin_kv.HashTable()
-
-
-def F_embedding(
-    input: torch.Tensor,
-    weight: torch.Tensor,
-    found: torch.Tensor,
-    padding_idx: Optional[int] = None,
-    max_norm: Optional[float] = None,
-    norm_type: float = 2.0,
-    scale_grad_by_freq: bool = False,
-    sparse: bool = False,
-) -> torch.Tensor:
-    if max_norm is not None:
-        input = input.contiguous()
-    return table.find(input.shape[0], input, weight, found  )
-
-
-class MKVEmbedding(nn.Embedding):
-
-    def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: Optional[int] = None,
-                 max_norm: Optional[float] = None, norm_type: float = 2., scale_grad_by_freq: bool = False,
-                 sparse: bool = False, _weight: Optional[torch.Tensor] = None,
-                 device=None, dtype=None) -> None:
-        factory_kwargs = {'device': device, 'dtype': dtype}
-        super(MKVEmbedding, self).__init__()
-        self.num_embeddings = num_embeddings
-        self.embedding_dim = embedding_dim
-        if padding_idx is not None:
-            if padding_idx > 0:
-                assert padding_idx < self.num_embeddings, 'Padding_idx must be within num_embeddings'
-            elif padding_idx < 0:
-                assert padding_idx >= -self.num_embeddings, 'Padding_idx must be within num_embeddings'
-                padding_idx = self.num_embeddings + padding_idx
-        self.padding_idx = padding_idx
-        self.max_norm = max_norm
-        self.norm_type = norm_type
-        self.scale_grad_by_freq = scale_grad_by_freq
-
-        self.dynamic_weight = torch.tensor([input.shape[0], self.embedding_dim], dtype=torch.float32, device='cuda')
-        self.found = torch.tensor([input.shape[0]], dtype=torch.bool, device='cuda')
-
-        self.sparse = sparse
-
-
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return F_embedding(
-            input, self.dynamic_weight, self.found, self.padding_idx, self.max_norm,
-            self.norm_type, self.scale_grad_by_freq, self.sparse)
-
-###############################################
 
 CONTEXT_SIZE = 2
 EMBEDDING_DIM = 2
@@ -111,26 +55,9 @@ class NGramLanguageModeler(nn.Module):
         return log_probs
 
 
-class NGramLanguageWithMerlinKVModeler(nn.Module):
-
-    def __init__(self, vocab_size, embedding_dim, context_size):
-        super(NGramLanguageWithMerlinKVModeler, self).__init__()
-        self.embeddings = MKVEmbedding(vocab_size, embedding_dim)
-        self.linear1 = nn.Linear(context_size * embedding_dim, 128)
-        self.linear2 = nn.Linear(128, vocab_size)
-
-    def forward(self, inputs):
-        embeds = self.embeddings(inputs).view((1, -1))
-        out = F.relu(self.linear1(embeds))
-        out = self.linear2(out)
-        log_probs = F.log_softmax(out, dim=1)
-        return log_probs
-
-
 losses = []
 loss_function = nn.NLLLoss()
-model = NGramLanguageWithMerlinKVModeler(len(vocab), EMBEDDING_DIM, CONTEXT_SIZE)
-print(model.parameters())
+model = NGramLanguageModeler(len(vocab), EMBEDDING_DIM, CONTEXT_SIZE)
 optimizer = optim.SGD(model.parameters(), lr=0.001)
 
 for epoch in range(10):
@@ -139,7 +66,7 @@ for epoch in range(10):
 
         # Step 1. Prepare the inputs to be passed to the model (i.e, turn the words
         # into integer indices and wrap them in tensors)
-        context_idxs = torch.tensor([word_to_ix[w] for w in context], dtype=torch.long, device='cuda')
+        context_idxs = torch.tensor([word_to_ix[w] for w in context], dtype=torch.long)
 
         # Step 2. Recall that torch *accumulates* gradients. Before passing in a
         # new instance, you need to zero out the gradients from the old
@@ -152,7 +79,7 @@ for epoch in range(10):
 
         # Step 4. Compute your loss function. (Again, Torch wants the target
         # word wrapped in a tensor)
-        loss = loss_function(log_probs, torch.tensor([word_to_ix[target]], dtype=torch.long), device='cuda')
+        loss = loss_function(log_probs, torch.tensor([word_to_ix[target]], dtype=torch.long))
 
         # Step 5. Do the backward pass and update the gradient
         loss.backward()
