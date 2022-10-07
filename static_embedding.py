@@ -45,12 +45,10 @@ class NGramLanguageModeler(nn.Module):
         super(NGramLanguageModeler, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, embedding_dim)
         self.linear1 = nn.Linear(context_size * embedding_dim, 128)
-        self.linear2 = nn.Linear(128, vocab_size)
 
     def forward(self, inputs):
         embeds = self.embeddings(inputs).view((1, -1))
-        out = F.relu(self.linear1(embeds))
-        out = self.linear2(out)
+        out = self.linear1(embeds)
         log_probs = F.log_softmax(out, dim=1)
         return log_probs
 
@@ -58,6 +56,7 @@ class NGramLanguageModeler(nn.Module):
 losses = []
 loss_function = nn.NLLLoss()
 model = NGramLanguageModeler(len(vocab), EMBEDDING_DIM, CONTEXT_SIZE)
+print(list(model.parameters()))
 optimizer = optim.SGD(model.parameters(), lr=0.001)
 
 for epoch in range(10):
