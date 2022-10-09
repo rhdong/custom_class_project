@@ -89,8 +89,9 @@ for epoch in range(10):
 
         # Get the Python number from a 1-element Tensor by calling tensor.item()
         total_loss += loss.item()
+
+        print(model.embeddings.weight.size())
     losses.append(total_loss)
-    print(model.embeddings.weight.size())
 print(losses)  # The loss decreased every iteration over the training data!
 
 # # To get the embedding of a particular word, e.g. "beauty"
