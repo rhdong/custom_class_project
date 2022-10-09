@@ -112,7 +112,7 @@ class OnlineSGD(optim.SGD):
 
 def zeros_like(input: Tensor, *, memory_format: Optional[torch.memory_format] = None):
     if isinstance(input, OnlineParameter):
-        return OnlineParameter(input, requires_grad=False)
+        return OnlineParameter(torch.empty((1, input.embedding_dim), device=input.device), requires_grad=False)
     else:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         return torch.zeros_like(input=input, memory_format=memory_format, device=device)
