@@ -62,7 +62,7 @@ loss_function = nn.NLLLoss()
 model = NGramLanguageModeler(EMBEDDING_DIM, CONTEXT_SIZE)
 optimizer = OnlineSGD(model.parameters(), lr=0.001)
 
-for epoch in range(10):
+for epoch in range(2):
     total_loss = 0
     for context, target in ngrams:
 
