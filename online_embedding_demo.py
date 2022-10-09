@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from modules.online_embedding import OnlineEmbedding, OnlineAdam
+from modules.online_embedding import OnlineEmbedding, OnlineSGD, OnlineAdam
 
 
 torch.manual_seed(1)
@@ -60,7 +60,7 @@ class NGramLanguageModeler(nn.Module):
 losses = []
 loss_function = nn.NLLLoss()
 model = NGramLanguageModeler(EMBEDDING_DIM, CONTEXT_SIZE)
-optimizer = OnlineAdam(model.parameters(), lr=0.001)
+optimizer = OnlineSGD(model.parameters(), lr=0.001)
 
 for epoch in range(10):
     total_loss = 0
