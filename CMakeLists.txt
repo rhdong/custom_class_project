@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 project(custom_class)
 
-find_package(Torch REQUIRED)
-
 # Define our library target
 # add_library(custom_class SHARED class.cpp)
 # set(CMAKE_CXX_STANDARD 14)
@@ -22,6 +20,10 @@ endif()
 foreach(cuda_arch ${cuda_arch_list})
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode arch=compute_${cuda_arch},code=sm_${cuda_arch}")
 endforeach()
+
+set(ENV{TORCH_CUDA_ARCH_LIST} "Ampere")
+
+find_package(Torch REQUIRED)
 
 # Define our library target
 add_library(merlin_kv SHARED merlin-kv.cu)
