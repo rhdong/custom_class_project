@@ -9,7 +9,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 CONTEXT_SIZE = 2
-EMBEDDING_DIM = 2
+EMBEDDING_DIM = 3
 # We will use Shakespeare Sonnet 2
 test_sentence = """When forty winters shall besiege thy brow,
 And dig deep trenches in thy beauty's field,
@@ -28,13 +28,25 @@ And see thy blood warm when thou feel'st it cold.""".split()
 # we should tokenize the input, but we will ignore that for now
 # build a list of tuples.
 # Each tuple is ([ word_i-CONTEXT_SIZE, ..., word_i-1 ], target word)
-ngrams = [
-    (
-        [test_sentence[i - j - 1] for j in range(CONTEXT_SIZE)],
+
+# for simulating the dynamic shape input.
+DYNAMIC_CONTEXT = 2
+# ngrams = [
+#     (
+#         [test_sentence[i - j - 1] for j in range(CONTEXT_SIZE)],
+#         test_sentence[i]
+#     )
+#     for i in range(CONTEXT_SIZE, len(test_sentence))
+# ]
+ngrams = []
+for i in range(CONTEXT_SIZE, len(test_sentence)):
+    item = (
+        [test_sentence[i - j - 1] for j in range(DYNAMIC_CONTEXT)],
         test_sentence[i]
     )
-    for i in range(CONTEXT_SIZE, len(test_sentence))
-]
+    DYNAMIC_CONTEXT = 5 - DYNAMIC_CONTEXT
+    ngrams.append(item)
+
 # Print the first 3, just so you can see what they look like.
 print(ngrams[:3])
 
@@ -48,11 +60,12 @@ class NGramLanguageModeler(nn.Module):
         vocab_size = len(vocab)
         super(NGramLanguageModeler, self).__init__()
         self.embeddings = OnlineEmbedding(-1, embedding_dim, device=device)
-        self.linear1 = nn.Linear(context_size * embedding_dim, 128, device=device)
+        self.linear1 = nn.Linear(embedding_dim, 128, device=device)
 
     def forward(self, inputs):
-        embeds = self.embeddings(inputs).view((1, -1))
-        out = self.linear1(embeds)
+        embeds = self.embeddings(inputs)
+        reduce_sum = torch.sum(embeds, dim=0)
+        out = self.linear1(reduce_sum).view((1, -1))
         log_probs = F.log_softmax(out, dim=1)
         return log_probs
 
